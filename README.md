@@ -2,7 +2,8 @@
 ```sh
 ic 数据获取,最顶级可以创建用户的星球 
 
-# 顶级canister https://dashboard.internetcomputer.org/canister/53i5d-faaaa-aaaan-qda6a-cai
+# 顶级canister  queryCanisterIds
+# https://dashboard.internetcomputer.org/canister/53i5d-faaaa-aaaan-qda6a-cai
 
 
 ```
