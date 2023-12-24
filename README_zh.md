@@ -125,6 +125,7 @@ ls -laih uwsgi_config
 
 
 # 问题
+# https://www.coder.work/article/6702501
 # https://www.coder.work/article/4946996
 # https://blog.csdn.net/qq_42701659/article/details/130740889
 # https://www.coder.work/article/2407032
