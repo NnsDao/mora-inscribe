@@ -1,1 +1,15 @@
-ic-py
+ic-py==1.0.1
+Django==4.2.8
+pymysql==1.0.3
+uwsgi==2.0.21
+
+mysql-connector==2.2.9
+# mysqlclient==
+# django-env==0.2.1
+django-environ==0.10.0
+
+utils==1.0.1
+# pip install Django==4.2.8 -i https://pypi.tuna.tsinghua.edu.cn/simple
+# https://zhuanlan.zhihu.com/p/623325525?utm_id=0
+# django-admin startproject mysite
+# python manage.py startapp myapp

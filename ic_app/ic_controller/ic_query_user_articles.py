@@ -16,6 +16,14 @@ import math
 import json
 import os
 import shutil
+from config import get_root
+
+# from ic_app.xhsParser import xhsHtmlInfoObj
+# RuntimeError: Model class models.studentsInfo doesn't declare an explicit app_label and isn't in an application in INSTALLED_APPS.
+# https://blog.csdn.net/ywk_hax/article/details/83421174
+# 解决方法,在导入models的时候,最好加上app应用名
+from ic_app.models import op_tick_group as OpTickGroupModel,article_list as ArticleListModel
+
 # 最顶级可以创建用户的星球
 # https://dashboard.internetcomputer.org/canister/53i5d-faaaa-aaaan-qda6a-cai
 # https://github.com/rocklabs-io/ic-py
@@ -33,16 +41,20 @@ class ic_data_statistics():
         iden = Identity()
         self.client = Client()
         self.agent = Agent(iden, self.client)
-        self.root_governance_did = open("root_inittrail.did", "r", encoding="utf-8").read()
-        self.user_governance_did = open("user_plant.did", "r", encoding="utf-8").read()
+        self.get_root_path = get_root()
+        root_inittrail_path = os.path.join(self.get_root_path, 'root_inittrail.did')
+        user_plant_path = os.path.join(self.get_root_path, 'user_plant.did')
+        self.root_governance_did = open(root_inittrail_path, "r", encoding="utf-8").read()
+        self.user_governance_did = open(user_plant_path, "r", encoding="utf-8").read()
         self.governance = Canister(agent=self.agent, canister_id=self.root_canister_id, candid=self.root_governance_did)
         time_current = getTime()
         # formatted_total_start_time = time_current['formatted_time']
         forma_ted_time = time_current['forma_ted_time']
-        self.get_root_path = get_root()
-        self.json_data_path = os.path.join(self.get_root_path, 'json_data_path',forma_ted_time)
+        
+        self.json_root_path = os.path.join(self.get_root_path, 'json_data_path')
+        self.json_data_path = os.path.join(self.get_root_path, self.json_root_path ,forma_ted_time)
         # 删除目录
-        remove_folder(self.json_data_path)
+        remove_folder(self.json_root_path)
         # 创建目录
         mk_dir(self.json_data_path)
         ''' 
@@ -57,6 +69,8 @@ class ic_data_statistics():
         '''
         # 所有的数据列表
         self.all_data_list_path = os.path.join(self.json_data_path, 'all_data_list_path.jsonl')
+        # 分批次保存到数据库 所有的数据
+        self.batch_save_data_list = []
         # 总的数据统计
         # self.total_data_dict_path = os.path.join(self.json_data_path, 'total_data_dict_path.json')
         # op是deploy的根据tick分组统计
@@ -101,8 +115,8 @@ class ic_data_statistics():
         ret_all = []
         print(  len(data_list),self.get_type_name(data_list)  )
         for index, value in enumerate(data_list):
-            if index >= 1000:
-                continue
+            # if index >= 15:
+            #     continue
             time_start_current = getTime()
             formatted_start_time = time_start_current['formatted_time']
             # forma_ted_total_start_time = time_start_current['forma_ted_time']
@@ -114,16 +128,16 @@ class ic_data_statistics():
             # print('formatted_start_time=',formatted_start_time,'formatted_end_time=',formatted_end_time,len(ret)  )
             ret_all.append(ret)
         # 保存   op以及tick分组去重 
-        self.save_config_json(config_path=self.op_tick_group_data_list_path,config_dict_data=self.op_tick_group_data_dict)
+        # self.save_config_json(config_path=self.op_tick_group_data_list_path,config_dict_data=self.op_tick_group_data_dict)
         return ret_all
     def thread_pool_data(self,max_worker=5000):
         '''
         线程池
         '''
         res = self.governance.queryCanisterIds()
-        # data_list = res[0]
-        # data_list = res[0][0:100]
-        data_list = res[0][0:1000]
+        data_list = res[0]
+        # data_list = res[0][0:10]
+        # data_list = res[0][0:1000]
         # print('--max_worker--',max_worker)
         with ThreadPoolExecutor(max_workers=max_worker) as t:
             obj_list = []
@@ -142,13 +156,355 @@ class ic_data_statistics():
                 obj_list.append(obj)
             # 如果你需要等待所有任务完成，可以使用以下代码
             for future in as_completed(obj_list):
-                ret_data = future.result()
-                # print("返回的",ret_data)
+                ret_canister_articles_data = future.result()
+                if not ret_canister_articles_data:
+                    # print('')
+                    # print('')
+                    print('--空的数据-',ret_canister_articles_data)
+                    # print('')
+                    continue
+                # article_num = 0
+                # article_total = len(ret_canister_articles_data)
+                # print('')
+                # print('')
+                # print('')
+                # 记录每个文章
+                self.make_canister_article_list(ret_canister_articles_data)
+                
+
+
+                # print("返回的",ret_canister_articles_data)
                 # print(f"返回的描述: {data['desc']}")
+                # print('')
+                # print('')
+                # print('--article_total--',article_total)
+                # print('')
 
         # 保存   op以及tick分组去重 
-        self.save_config_json(config_path=self.op_tick_group_data_list_path,config_dict_data=self.op_tick_group_data_dict)
-    
+        # self.save_config_json(config_path=self.op_tick_group_data_list_path,config_dict_data=self.op_tick_group_data_dict)
+        self.make_op_tick_list()
+
+    def make_op_tick_list(self):
+        '''  '''
+        for key ,op_tick_group_list in self.op_tick_group_data_dict.items():
+            # print('')
+            # print('--key ,value--',key ,op_tick_group_list)
+            # 总文章数
+            article_total = len(op_tick_group_list)
+            # print(  article_total,self.get_type_name(canister_articles_list)  )
+            # print('')
+            multi_data_list = []
+            multi_total = 0
+            # 一次处理多少个文章
+            batch_num = 150
+            for index, item in enumerate(op_tick_group_list):
+                # print('')
+                # item: dict
+                index += 1
+                # print('----item--',self.get_type_name(item),'--article_total--',article_total ,'-index-',index)
+                # print('----item--',item)
+                '''
+                ----item-- {'id': '0C04SGYAMVYNNYZYWF81GV5V8F', 'status': {'Public': None}, 'thumb': 'QmVtDL4UyJjHUae8b6vESaimb59kebprkagMmawE2HSUiq', 'title': 'MORA ', 'created': 1702049161438, 'toped': 0, 'subcate': 0, 'atype': {'Article': None}, 'cate': 0, 'like': 0, 'tags': [], 'view': 0, 'fromurl': '', 'unlike': 0, 'author': 'e2yd5-tlpth-eejos-g6v5h-irhiw-urz74-qdvdx-skpmm-7o3c3-jcbrn-iae', 'commentTotal': 0, 'comment': 0, 'updated': 1702049456326, 'abstract': 'Mint: { "p": "mora-20", "op": "mint", "tick": "mora", "amt": "1000" } tag：$mora \n', 'allowComment': False, 'copyright': [], 'original': True, 'commentNew': 0, 'user_canister_id': 't6etm-yyaaa-aaaan-qdb6q-cai', 'canister_index': 8, 'page': 5, 'op_tick_group_key': 'mint_mora', 'abstract_json': {'p': 'mora-20', 'op': 'mint', 'tick': 'mora', 'amt': '1000'}}
+                '''
+
+                multi_data_list.append(item)
+                if index % batch_num == 0 or index == article_total:
+                    # multi_total += len(multi_data_list)
+                    multi_len = len(multi_data_list)
+                    multi_total += multi_len
+                    # print('----item--',self.get_type_name(item),'--article_total--',article_total ,'-index-',index,'-multi_total-',multi_total,'-multi_len-',multi_len)
+                    self.multi_save_op_tick_list_to_db(multi_data_list)
+                    multi_data_list = []
+    def multi_save_op_tick_list_to_db(self,multi_data_list:list=[]):
+        ''' '''
+        # --key ,value-- deploy_tuo [{'article_id': '0D5VQRQK0AH9VY7Q1EPXSRM3RR', 'op_tick_group_key': 'deploy_tuo', 'title': 'tuo', 'created': 1703345128003, 'updated': 1703345128003, 'page': 1, 'tags': [], 'author': 'ycaq2-am5es-7ddcs-u5keb-5xawp-k4d3w-tsilc-hd2fk-tiuy4-wopfn-jae', 'canister_id': 'tcaj5-pyaaa-aaaan-qdb4q-cai', 'canister_index': 4, 'protocol': 'mora-20', 'op': 'deploy', 'tick': 'tuo', 'amt': '', 'max': '21000', 'lim': '1'}]
+        if not multi_data_list:
+            return ''
+        article_id_list = [ i['article_id'] for i in multi_data_list ]
+
+        article_list_model = OpTickGroupModel.objects.filter(article_id__in=article_id_list).order_by("-created").values(
+                'id', 'article_id','created','op_tick_group_key'
+                # ,'article_status','thumb',
+                # 'title','updated','toped','subcate','atype','cate','like','tags','view',
+                # 'fromurl','unlike','comment_total','comment','allow_comment','copyright','original',
+                # 'comment_new','author','canister_id','protocol','op','tick','abstract','amt','max','lim',
+                # 'create_time','update_time'
+        )
+        # datetime.datetime(2023, 12, 23, 15, 45, 28, 715241, tzinfo=datetime.timezone.utc)}
+        # print('')
+        # count = article_list_model.count()
+        # print('--article_list_model--',article_list_model,self.get_type_name(article_list_model),'-count-',count )
+        # --article_list_model-- <QuerySet [<article_list: article_list object (4)>]> QuerySet -count- 1
+        # --article_list_model-- <QuerySet [{'id': 1, 'article_id': '0C06JCQHBT5NXWCHPDKG7C18C9'}, {'id': 2, 'article_id': '0C06EDN154324KZER2JTHM9P0A'}]> QuerySet -count- 2
+        # --article_list_model-- <QuerySet []> QuerySet
+        article_exist_id_list = [ t['article_id'] for t in article_list_model]
+
+
+        install_article_data = []
+        for index, item in enumerate(multi_data_list):
+            # print('')
+            article_id = item['article_id']
+            if article_id not in article_exist_id_list:
+                install_article_data.append(item)
+            # print('--article--item--',item)
+        # print('--install_article_data--',len(install_article_data) ,self.get_type_name(install_article_data) )
+
+        # # https://tool.lu/timestamp
+        # # 2147483647
+        # # 2147483647
+        # TypeError: op_tick_group() got unexpected keyword arguments: 'original', 'comment_new'
+
+
+        if install_article_data:
+            obj_install_data = []
+            for row in install_article_data:
+                # 将数据转换为JSON格式
+                tags = row.get('tags'),
+                json_tags = ''
+                if tags:
+                    json_tags = json.dumps(tags,ensure_ascii=False)
+
+                data = OpTickGroupModel(
+                    article_id = row.get('article_id'),
+                    op_tick_group_key = row.get('op_tick_group_key'),
+
+                    # thumb = row.get('thumb'),
+                    title =  row.get('title'),
+                    # import datetime
+                    # created = 1609459200000  # 示例毫秒时间
+                    # 1609459200123
+                    # dt = datetime.datetime.fromtimestamp(created / 1000.0)    
+                    created =  row.get('created'),
+                    updated =  row.get('updated'),
+                    # - 长整型(有符号的) -9223372036854775808 ～ 9223372036854775807
+                    # django.db.utils.IntegrityError: NOT NULL constraint failed: ic_app_op_tick_group.canister_id
+
+
+                    tags =  json_tags,
+                    # view = row.get('view'),
+                    # fromurl = row.get('fromurl'),
+                    # unlike = row.get('unlike'),
+                    # comment_total = row.get('commentTotal'),
+                    # comment = row.get('comment'),
+                    # allow_comment = row.get('allowComment'),
+                    # copyright = json_copyright,
+                    # original = row.get('original'),
+                    # comment_new = row.get('commentNew'),
+
+                    author = row.get('author'),
+                    canister_id = row.get('canister_id'),
+
+                    # {'p': 'mora-20', 'op': 'mint', 'tick': 'mora', 'amt': '1000'}
+                    protocol = row.get('protocol'),
+                    op = row.get('op'),
+                    tick = row.get('tick'),
+
+                    amt = row.get('amt') if 'amt' in row else 0,
+                    max = row.get('max') if 'max' in row else 0,
+                    lim = row.get('lim') if 'lim' in row else 0,
+
+                    # create_time = create_time,      # 入库创建时间 
+                    # update_time = create_time,      # 入库更新时间
+
+                )
+                obj_install_data.append(data)
+            OpTickGroupModel.objects.bulk_create(obj_install_data)
+        # 
+    def make_canister_article_list(self,canister_articles_list=[]):
+        ''' 处理线程池返回的 canister 文章数据'''
+        article_num = 0
+        # print('')
+        # print('')
+        # print('')
+        # 总文章数
+        article_total = len(canister_articles_list)
+        # print(  article_total,self.get_type_name(canister_articles_list)  )
+        # print('')
+        multi_data_list = []
+        multi_total = 0
+        # 一次处理多少个文章
+        batch_num = 150
+        for index, item in enumerate(canister_articles_list):
+            # print('')
+            # item: dict
+            index += 1
+            # print('----item--',self.get_type_name(item),'--article_total--',article_total ,'-index-',index)
+            # print('----item--',item)
+            '''
+            ----item-- {'id': '0C04SGYAMVYNNYZYWF81GV5V8F', 'status': {'Public': None}, 'thumb': 'QmVtDL4UyJjHUae8b6vESaimb59kebprkagMmawE2HSUiq', 'title': 'MORA ', 'created': 1702049161438, 'toped': 0, 'subcate': 0, 'atype': {'Article': None}, 'cate': 0, 'like': 0, 'tags': [], 'view': 0, 'fromurl': '', 'unlike': 0, 'author': 'e2yd5-tlpth-eejos-g6v5h-irhiw-urz74-qdvdx-skpmm-7o3c3-jcbrn-iae', 'commentTotal': 0, 'comment': 0, 'updated': 1702049456326, 'abstract': 'Mint: { "p": "mora-20", "op": "mint", "tick": "mora", "amt": "1000" } tag：$mora \n', 'allowComment': False, 'copyright': [], 'original': True, 'commentNew': 0, 'user_canister_id': 't6etm-yyaaa-aaaan-qdb6q-cai', 'canister_index': 8, 'page': 5, 'op_tick_group_key': 'mint_mora', 'abstract_json': {'p': 'mora-20', 'op': 'mint', 'tick': 'mora', 'amt': '1000'}}
+            '''
+
+            multi_data_list.append(item)
+            if index % batch_num == 0 or index == article_total:
+                # multi_total += len(multi_data_list)
+                multi_len = len(multi_data_list)
+                multi_total += multi_len
+                # print('----item--',self.get_type_name(item),'--article_total--',article_total ,'-index-',index,'-multi_total-',multi_total,'-multi_len-',multi_len)
+                self.multi_save_article_list_to_db(multi_data_list)
+                multi_data_list = []
+
+
+        # print('')
+        # print('')
+    def multi_save_article_list_to_db(self,multi_data:list = []):
+        ''' 批量保存文章信息 '''
+        if not multi_data:
+            return ''
+        article_id_list = [ i['id'] for i in multi_data ]
+        # print('--article_id_list--',article_id_list,'--len--',len(article_id_list) ,'')
+        # in：是否包含在范围内 查询编号为1或3或5 book = Book.objects.filter(id__in=[1, 3, 5])
+        # 查询学过课程id为1和2的所有同学的id、姓名
+        # Student.object.filter(scorecoursein=[1, 2]).values('id', 'name').distinct()
+        # article_list_model = ArticleListModel.objects.filter(article_id__in=article_id_list).all()
+        # article_id = row.get('id'),
+        article_list_model = ArticleListModel.objects.filter(article_id__in=article_id_list).order_by("-created").values(
+                'id', 'article_id','created','article_status','thumb',
+                'title','updated','toped','subcate','atype','cate','like','tags','view',
+                'fromurl','unlike','comment_total','comment','allow_comment','copyright','original',
+                'comment_new','author','canister_id','protocol','op','tick','abstract','amt','max','lim',
+                'create_time','update_time'
+        )
+        # datetime.datetime(2023, 12, 23, 15, 45, 28, 715241, tzinfo=datetime.timezone.utc)}
+        # print('')
+        # count = article_list_model.count()
+        # print('--article_list_model--',article_list_model,self.get_type_name(article_list_model),'-count-',count )
+        # --article_list_model-- <QuerySet [<article_list: article_list object (4)>]> QuerySet -count- 1
+        # --article_list_model-- <QuerySet [{'id': 1, 'article_id': '0C06JCQHBT5NXWCHPDKG7C18C9'}, {'id': 2, 'article_id': '0C06EDN154324KZER2JTHM9P0A'}]> QuerySet -count- 2
+        # --article_list_model-- <QuerySet []> QuerySet
+        article_exist_id_list = [ t['article_id'] for t in article_list_model]
+
+
+        install_article_data = []
+        for index, item in enumerate(multi_data):
+            # print('')
+            article_id = item['id']
+            if article_id not in article_exist_id_list:
+                install_article_data.append(item)
+            # print('--article--item--',item)
+        # print('--install_article_data--',len(install_article_data) ,self.get_type_name(install_article_data) )
+
+        if install_article_data:
+            obj_install_data = []
+            for row in install_article_data:
+                create_time = ''
+                # -id- {'id': '0C09WWSKTPZRY4J0YQC75RX791', 'status': {'Public': None}, 'thumb': 'QmVtDL4UyJjHUae8b6vESaimb59kebprkagMmawE2HSUiq', 'title': 'MORA', 'created': 1702054651571, 'toped': 0, 'subcate': 0, 'atype': {'Article': None}, 'cate': 0, 'like': 0, 'tags': [], 'view': 0, 'fromurl': '', 'unlike': 0, 'author': 'e2yd5-tlpth-eejos-g6v5h-irhiw-urz74-qdvdx-skpmm-7o3c3-jcbrn-iae', 'commentTotal': 0, 'comment': 0, 'updated': 1702054651571, 'abstract': 'Mint: { "p": "mora-20", "op": "mint", "tick": "mora", "amt": "1000" }\n', 'allowComment': False, 'copyright': [], 'original': True, 'commentNew': 0, 'user_canister_id': 't6etm-yyaaa-aaaan-qdb6q-cai', 'canister_index': 8, 'page': 2, 'op_tick_group_key': 'mint_mora', 'abstract_json': {'p': 'mora-20', 'op': 'mint', 'tick': 'mora', 'amt': '1000'}}
+                # print('-id-',row.get('id'), row.get('thumb'), row.get('title'),row.get('created'),row.get('updated'),row.get('toped'),row.get('subcate'))
+                # print('-cate-',row.get('cate'), row.get('like'),row.get('view'),row.get('fromurl'),row.get('unlike'),row.get('commentTotal'),row.get('abstract')  )
+                # print('-commentTotal-',row.get('commentTotal'),row.get('comment'), row.get('allowComment'),row.get('original'),row.get('commentNew'),row.get('author'),row.get('user_canister_id'))
+                # print('')
+                # print('-abstract_json-',row.get('abstract_json'), self.get_type_name(row.get('abstract_json'))  )
+                tags = row.get('tags')
+                copyright = row.get('copyright')
+                atype_dict = row.get('atype')
+                status_dict = row.get('status')
+                # print('-status-',status_dict,atype_dict,tags ,copyright  )
+                status_public = 'Public' if 'Public' in status_dict else ''
+                status_public = 'Subcribe' if 'Subcribe' in status_dict and not status_public else status_public
+                status_public = 'Private' if 'Private' in status_dict and not status_public else status_public
+                status_public = 'Draft' if 'Draft' in status_dict and not status_public else status_public
+                status_public = 'Delete' if 'Delete' in status_dict and not status_public else status_public
+                # Subcribe:null;Private:null;Draft:null;Public:null;Delete:null
+                # print('-status_dict-',status_public  )
+                # print('')
+                # Photos; Article; Shortle; Audio; Video
+                status_atype = 'Article' if 'Article' in atype_dict else ''
+                status_atype = 'Photos' if 'Photos' in atype_dict and not status_atype else status_atype
+                status_atype = 'Shortle' if 'Shortle' in atype_dict and not status_atype else status_atype
+                status_atype = 'Audio' if 'Audio' in atype_dict and not status_atype else status_atype
+                status_atype = 'Video' if 'Video' in atype_dict and not status_atype else status_atype
+                # print('-status_atype-',status_atype  )
+
+                abstract_json = row.get('abstract_json')
+                # print('-abstract_json-',abstract_json  )
+                # 将数据转换为JSON格式
+                json_tags = ''
+                if tags:
+                    json_tags = json.dumps(tags,ensure_ascii=False)
+                json_copyright = ''
+                if copyright:
+                    json_copyright = json.dumps(copyright,ensure_ascii=False)
+                
+                # print('-json_tags-',json_tags , self.get_type_name(json_tags)  )
+                # print('-json_copyright-',json_copyright , self.get_type_name(json_copyright)  )
+                # print('')
+                # print('')
+                data = ArticleListModel(
+                    article_id = row.get('id'),
+                    article_status = status_public,
+                    thumb = row.get('thumb'),
+                    title =  row.get('title'),
+                    # import datetime
+                    # created = 1609459200000  # 示例毫秒时间
+                    # 1609459200123
+                    # dt = datetime.datetime.fromtimestamp(created / 1000.0)    
+                    created =  row.get('created'),
+                    updated =  row.get('updated'),
+                    # - 长整型(有符号的) -9223372036854775808 ～ 9223372036854775807
+
+                    toped =  row.get('toped'),
+                    subcate =  row.get('subcate'),
+                    atype =  status_atype,
+                    cate =  row.get('cate'),
+                    like =  row.get('like'),
+                    tags =  json_tags,
+                    view = row.get('view'),
+                    fromurl = row.get('fromurl'),
+                    unlike = row.get('unlike'),
+                    comment_total = row.get('commentTotal'),
+                    comment = row.get('comment'),
+                    allow_comment = row.get('allowComment'),
+                    copyright = json_copyright,
+                    original = row.get('original'),
+                    comment_new = row.get('commentNew'),
+
+                    author = row.get('author'),
+                    canister_id = row.get('user_canister_id'),
+
+                    # {'p': 'mora-20', 'op': 'mint', 'tick': 'mora', 'amt': '1000'}
+                    protocol = abstract_json.get('p'),
+                    op = abstract_json.get('op'),
+                    tick = abstract_json.get('tick'),
+
+                    abstract = row.get('abstract'),
+
+                    amt = abstract_json.get('amt') if 'amt' in abstract_json else 0,
+                    max = abstract_json.get('max') if 'max' in abstract_json else 0,
+                    lim = abstract_json.get('lim') if 'lim' in abstract_json else 0,
+
+                    # create_time = create_time,      # 入库创建时间 
+                    # update_time = create_time,      # 入库更新时间
+
+                )
+                obj_install_data.append(data)
+            ArticleListModel.objects.bulk_create(obj_install_data)
+        # # 删除数据
+        # exist_id_list = [ t['id'] for t in article_list_model]
+        # print('')
+        # print('--exist_id_list--',exist_id_list)
+        # ArticleListModel.objects.filter(pk__in=exist_id_list).delete()
+
+        # # 创建 10 个 Person 对象并使用 bulk_create() 方法保存到数据库中
+        # people = [Person(name=f"Person {i}", age=random.randint(1, 100)) for i in range(10)]
+        # Person.objects.bulk_create(people)
+
+        # # 将列表中的数据转换为 MyModel 对象列表
+        #     my_model_objects = [
+        #         MyModel(
+        #             field1=row[0],
+        #             field2=row[1],
+        #             # ...
+        #         )
+        #         for row in data
+        #     ]
+        #     # 批量插入到数据库中
+        #     MyModel.objects.bulk_create(my_model_objects)
+        # objs = [
+        #     MyModel(name='John', age=30),
+        #     MyModel(name='Mary', age=25),
+        #     MyModel(name='Peter', age=40),
+        # ]
+        # MyModel.objects.bulk_create(objs)
+
     def calculate_total_pages(self,limit, total):  
         """  
         计算总页数  
@@ -538,9 +894,9 @@ class ic_data_statistics():
                     "protocol":abstract_json["p"],
                     "op":abstract_json["op"],
                     "tick":abstract_json["tick"],
-                    "amt":abstract_json["amt"] if 'amt' in abstract_json else '',
-                    "max":abstract_json["max"] if 'max' in abstract_json else '',
-                    "lim":abstract_json["lim"] if 'lim' in abstract_json else '',
+                    "amt":abstract_json["amt"] if 'amt' in abstract_json else 0,
+                    "max":abstract_json["max"] if 'max' in abstract_json else 0,
+                    "lim":abstract_json["lim"] if 'lim' in abstract_json else 0,
                     
                 }
                 self.op_tick_group_data_dict[op_tick_group_key].append(items_tmp_line)
@@ -649,8 +1005,8 @@ def getTime():
     formatted_time = now.strftime("%Y-%m-%d %H:%M:%S")
     forma_ted_time = now.strftime("%Y-%m-%d_%H%M%S")
     return {"formatted_date":formatted_date,"formatted_time":formatted_time,"forma_ted_time":forma_ted_time}
-def get_root():
-    return os.path.dirname(os.path.abspath(__file__))
+# def get_root():
+#     return os.path.dirname(os.path.abspath(__file__))
 
 def mk_dir(path):
     ''' 创建目录 '''
