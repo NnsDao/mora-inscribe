@@ -119,5 +119,16 @@ python manage.py runserver
 
 
 # linux 部署
+ls -laih uwsgi_config
+
+
+
+
+# 问题
+# https://www.coder.work/article/4946996
+# https://blog.csdn.net/qq_42701659/article/details/130740889
+# https://www.coder.work/article/2407032
+# https://www.jianshu.com/p/2fd01e7ee247
+# https://blog.csdn.net/SDKL_YI/article/details/129088153
 
 ```
