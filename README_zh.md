@@ -132,4 +132,20 @@ ls -laih uwsgi_config
 # https://www.jianshu.com/p/2fd01e7ee247
 # https://blog.csdn.net/SDKL_YI/article/details/129088153
 
+# 后台进程  nohup ./ic_query_user_article_list.sh > ic_query_user_article_list.log 2>&1  &
+# https://zhuanlan.zhihu.com/p/617627144?utm_id=0
+# https://blog.csdn.net/Dontla/article/details/126343988
+# https://blog.csdn.net/qq_21891743/article/details/132769245
+
+cd /www/wwwroot/api.icpscriptions.com
+# 后台运行
+bash ic_query_user_article_list.sh > ic_query_user_article_list.log 2>&1 &
+# nohup  echo_test.sh > ic_query_user_article_list.log 2>&1
+ps -aux | grep 'ic_query_user_article_list'
+jobs
+# 后台程序正确的退出 [1]+  Done                    bash ic_query_user_article_list.sh > ic_query_user_article_list.log 2>&1
+
+# 程序出现 killed
+# https://zhuanlan.zhihu.com/p/648165521?utm_id=0
+
 ```

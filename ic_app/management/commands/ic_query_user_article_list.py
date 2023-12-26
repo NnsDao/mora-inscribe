@@ -1,6 +1,6 @@
 # my_script.py
 from django.core.management.base import BaseCommand, CommandError
-from ic_app.ic_controller.ic_query_user_articles import run as article_script,ic_data_statistics
+from ic_app.ic_controller.ic_query_user_articles import ic_data_statistics,getTime
 
 # python django框架4.2.8版本 多个子目录自定义Command 命令
 
@@ -34,8 +34,16 @@ class Command(BaseCommand):
         # python manage.py ic_query_user_article_list 1 2 3 --option --option_s=ffff  --option_t=tt
         # My script is running with arguments: [1, 2, 3] and option: True and option_s: ffff and option_t: tt
         obj = ic_data_statistics()
+        time_total_current = getTime()
+        formatted_total_start_time = time_total_current['formatted_time']
         # ret = obj.query_canister_ids()
         ret = obj.thread_pool_data()
+
+        time_total_end_current = getTime()
+        formatted_total_end_time = time_total_end_current['formatted_time']
+        # forma_ted_total_start_time = time_total_end_current['forma_ted_time']
+        # print(ret)
+        print('formatted_total_start_time=',formatted_total_start_time,'formatted_total_end_time=',formatted_total_end_time)
         
 # python manage.py ic_query_user_article_list 1 2 3 --option
 # My script is running with arguments: [1, 2, 3] and option: True and option_s: None and option_t: None

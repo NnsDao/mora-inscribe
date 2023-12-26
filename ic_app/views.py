@@ -97,11 +97,11 @@ def get_op_tick_list(request):
         # print('--errInfo--',user_id,errInfo)
         # runLog(content=errInfo)
         cookieOne = ''
-    if not article_data_list :
-        retData['code'] = 3
-        retData['msg'] = '获取失败'    
-        # runLog(content=retData)
-        return JsonResponse(retData)
+    # if not article_data_list :
+    #     retData['code'] = 3
+    #     retData['msg'] = '获取失败'    
+    #     # runLog(content=retData)
+    #     return JsonResponse(retData)
     # retData['data'] = json_data
     return JsonResponse(retData)
 
@@ -179,11 +179,11 @@ def get_article_list(request):
         # print('--errInfo--',user_id,errInfo)
         # runLog(content=errInfo)
         cookieOne = ''
-    if not article_data_list :
-        retData['code'] = 3
-        retData['msg'] = '获取失败'    
-        # runLog(content=retData)
-        return JsonResponse(retData)
+    # if not article_data_list :
+    #     retData['code'] = 3
+    #     retData['msg'] = '获取失败'    
+    #     # runLog(content=retData)
+    #     return JsonResponse(retData)
     # retData['data'] = json_data
     return JsonResponse(retData)
 
