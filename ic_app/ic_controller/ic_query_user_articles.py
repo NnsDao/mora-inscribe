@@ -135,11 +135,12 @@ class ic_data_statistics():
             # forma_ted_total_start_time = time_start_current['forma_ted_time']
             # print('')
             # print('Index: {}, Value: {}'.format(index, value))
+            del data_list[index]
             ret = self.thread_pool_articles(user_canister_id=value,canister_index=index)
             time_end_current = getTime()
             formatted_end_time = time_end_current['formatted_time']
             # print('formatted_start_time=',formatted_start_time,'formatted_end_time=',formatted_end_time,len(ret)  )
-            ret_all.append(ret)
+            # ret_all.append(ret)
         # 保存   op以及tick分组去重 
         # self.save_config_json(config_path=self.op_tick_group_data_list_path,config_dict_data=self.op_tick_group_data_dict)
         return ret_all
@@ -153,7 +154,7 @@ class ic_data_statistics():
         # data_list = res[0][0:1000]
         # print('--max_worker--',max_worker)
         with ThreadPoolExecutor(max_workers=max_worker) as t:
-            # obj_list = []
+            obj_list = []
             for index, canister_id in enumerate(data_list):
                 # if index >= 1000:
                 #     continue
@@ -164,31 +165,33 @@ class ic_data_statistics():
                 #     "msg":msg
                 # }
                 # append_to_jsonl(file_path=self.indes_canister_data_dict_path, data=item_line)
-            
+                del data_list[index]
                 obj = t.submit(self.thread_pool_articles, canister_id,index)
                 # obj_list.append(obj)
+            '''
             # 如果你需要等待所有任务完成，可以使用以下代码
-            # for future in as_completed(obj_list):
-            #     ret_canister_articles_data = future.result()
-            #     if not ret_canister_articles_data:
-            #         # print('')
-            #         # print('')
-            #         print('--空的数据-',ret_canister_articles_data)
-            #         # print('')
-            #         continue
-            #     # article_num = 0
-            #     # article_total = len(ret_canister_articles_data)
-            #     # print('')
-            #     # print('')
-            #     # print('')
-            #     # 记录每个文章
-            #     # self.make_canister_article_list(ret_canister_articles_data)
-            #     # print("返回的",ret_canister_articles_data)
-            #     # print(f"返回的描述: {data['desc']}")
-            #     # print('')
-            #     # print('')
-            #     # print('--article_total--',article_total)
-            #     # print('')
+            for future in as_completed(obj_list):
+                ret_canister_articles_data = future.result()
+                if not ret_canister_articles_data:
+                    # print('')
+                    # print('')
+                    print('--空的数据-',ret_canister_articles_data)
+                    # print('')
+                    continue
+                # article_num = 0
+                # article_total = len(ret_canister_articles_data)
+                # print('')
+                # print('')
+                # print('')
+                # 记录每个文章
+                # self.make_canister_article_list(ret_canister_articles_data)
+                # print("返回的",ret_canister_articles_data)
+                # print(f"返回的描述: {data['desc']}")
+                # print('')
+                # print('')
+                # print('--article_total--',article_total)
+                # print('')
+            '''
 
         # 保存   op以及tick分组去重 
         # self.save_config_json(config_path=self.op_tick_group_data_list_path,config_dict_data=self.op_tick_group_data_dict)
@@ -197,10 +200,27 @@ class ic_data_statistics():
         # 删除目录
         remove_folder(self.canister_id_article_id_is_exists_path)
         # self.make_op_tick_list()
-
     def make_op_tick_list(self):
+        article_total = len(self.op_tick_group_data_dict)
+        index = 0
+        multi_data_list = []
+        batch_num = 200
+        multi_total = 0
+        for key ,item in self.op_tick_group_data_dict.items():
+            index += 1
+
+            multi_data_list.append(item)
+            if index % batch_num == 0 or index == article_total:
+                # multi_total += len(multi_data_list)
+                multi_len = len(multi_data_list)
+                multi_total += multi_len
+                # print('----item--',self.get_type_name(item),'--article_total--',article_total ,'-index-',index,'-multi_total-',multi_total,'-multi_len-',multi_len)
+                self.multi_save_op_tick_list_to_db(multi_data_list)
+                multi_data_list = []
+    def make_op_tick_bak_list(self):
         '''  '''
         for key ,op_tick_group_list in self.op_tick_group_data_dict.items():
+        # for key ,op_tick_group_list in self.op_tick_group_data_dict:
             # print('')
             # print('--key ,value--',key ,op_tick_group_list)
             # 总文章数
@@ -210,7 +230,7 @@ class ic_data_statistics():
             multi_data_list = []
             multi_total = 0
             # 一次处理多少个文章
-            batch_num = 150
+            batch_num = 200
             for index, item in enumerate(op_tick_group_list):
                 # print('')
                 # item: dict
@@ -227,7 +247,7 @@ class ic_data_statistics():
                     multi_len = len(multi_data_list)
                     multi_total += multi_len
                     # print('----item--',self.get_type_name(item),'--article_total--',article_total ,'-index-',index,'-multi_total-',multi_total,'-multi_len-',multi_len)
-                    # self.multi_save_op_tick_list_to_db(multi_data_list)
+                    self.multi_save_op_tick_list_to_db(multi_data_list)
                     multi_data_list = []
     def multi_save_op_tick_list_to_db(self,multi_data_list:list=[]):
         ''' '''
@@ -235,8 +255,8 @@ class ic_data_statistics():
         if not multi_data_list:
             return ''
         article_id_list = [ i['id'] for i in multi_data_list ]
-
-        article_list_model = OpTickGroupModel.objects.filter(article_id__in=article_id_list).order_by("-created").values(
+        # order_by("-created").
+        article_list_model = OpTickGroupModel.objects.filter(article_id__in=article_id_list).values(
                 # 'id', 
                 'article_id'
                 # ,'created','op_tick_group_key'
@@ -343,7 +363,7 @@ class ic_data_statistics():
         multi_data_list = []
         multi_total = 0
         # 一次处理多少个文章
-        batch_num = 150
+        batch_num = 200
         for index, item in enumerate(canister_articles_list):
             # print('')
             # item: dict
@@ -377,7 +397,8 @@ class ic_data_statistics():
         # Student.object.filter(scorecoursein=[1, 2]).values('id', 'name').distinct()
         # article_list_model = ArticleListModel.objects.filter(article_id__in=article_id_list).all()
         # article_id = row.get('id'),
-        article_list_model = ArticleListModel.objects.filter(article_id__in=article_id_list).order_by("-created").values(
+        # order_by("-created").
+        article_list_model = ArticleListModel.objects.filter(article_id__in=article_id_list).values(
                 # 'id', 
                 'article_id'
                 # ,'created','article_status','thumb',
@@ -593,106 +614,110 @@ class ic_data_statistics():
         ret_list_data = ret.get('data',[]) or []
         # page = ret.get('page',0) or 0
         self.make_canister_article_page_list(ret_list_data,user_canister_id,canister_index,page)
-        # for item_line in ret_list_data:
-        #     # 当前canister_id 根据文章id去重
-        #     # self.canister_id_article_id_is_exists_path
-        #     # if item_line['id'] in article_id_dict:
-        #     #     continue
-        #     if self.canister_article_is_exists(user_canister_id,canister_index,item_line['id'],page):
-        #         continue
+        queryArticleReq = {}
+        user_governance = {}
+        '''
+        for item_line in ret_list_data:
+            # 当前canister_id 根据文章id去重
+            # self.canister_id_article_id_is_exists_path
+            # if item_line['id'] in article_id_dict:
+            #     continue
+            if self.canister_article_is_exists(user_canister_id,canister_index,item_line['id'],page):
+                continue
             
-        #     item_line['user_canister_id'] = user_canister_id
-        #     item_line['canister_index'] = canister_index
-        #     # TypeError: Object of type Principal is not JSON serializable
-        #     item_line['author'] = item_line['author'].to_str()
-        #     item_line['page'] = page
+            item_line['user_canister_id'] = user_canister_id
+            item_line['canister_index'] = canister_index
+            # TypeError: Object of type Principal is not JSON serializable
+            item_line['author'] = item_line['author'].to_str()
+            item_line['page'] = page
 
-        #     # -abstract- Mint: { "p": "mora-20", "op": "mint", "tick": "mora", "amt": "1000" }
-        #     # -abstract- Mora Protocol
-        #     abstract = item_line['abstract']
-        #     # python 去除字符串右边的换行符
-        #     abstract = abstract.rstrip('\n')
-        #     abstract = abstract.rstrip('\r')
-        #     abstract = abstract.rstrip('\r\n')
+            # -abstract- Mint: { "p": "mora-20", "op": "mint", "tick": "mora", "amt": "1000" }
+            # -abstract- Mora Protocol
+            abstract = item_line['abstract']
+            # python 去除字符串右边的换行符
+            abstract = abstract.rstrip('\n')
+            abstract = abstract.rstrip('\r')
+            abstract = abstract.rstrip('\r\n')
             
-        #     #  python 检测字符串是否为Mint: {开头的
-        #     if abstract.startswith('Mint:'):
-        #         # print("该字符串以 'Mint: {' 开头")
-        #         # 删除字符串左边的特定字符
-        #         new_s = abstract.lstrip('Mint:')
-        #         items_line = self.op_tick_group_data_make(item_line,user_canister_id,new_s,abstract)
-        #         if items_line:
-        #             # print('--item_line--',item_line,self.get_type_name(item_line))
-        #             # 记录每一行不重复的数据
-        #             # append_to_jsonl(file_path=self.all_data_list_path, data=item_line)
-        #             # canister_article_list.append(items_line)
+            #  python 检测字符串是否为Mint: {开头的
+            if abstract.startswith('Mint:'):
+                # print("该字符串以 'Mint: {' 开头")
+                # 删除字符串左边的特定字符
+                new_s = abstract.lstrip('Mint:')
+                items_line = self.op_tick_group_data_make(item_line,user_canister_id,new_s,abstract)
+                if items_line:
+                    # print('--item_line--',item_line,self.get_type_name(item_line))
+                    # 记录每一行不重复的数据
+                    # append_to_jsonl(file_path=self.all_data_list_path, data=item_line)
+                    canister_article_list.append(items_line)
 
-        #             self.save_article_dict_info(items_line)
+                    # self.save_article_dict_info(items_line)
 
-        #             # article_id_dict[items_line['id']] = items_line['id']
+                    # article_id_dict[items_line['id']] = items_line['id']
                     
-        #         # new_s = new_s.lstrip(' ')
-        #         # # -new_s- { "p": "mora-20", "op": "mint", "tick": "mora", "amt": "1000" } tag：$mora
-        #         # if new_s.__contains__(' tag：'):
-        #         #     new_s_list = new_s.split(' tag：')
-        #         #     new_s = new_s_list[0]
-        #         # # -new_s- { "p": "mora-20", "op": "mint", "tick": "mora", "amt": "1000" }.
-        #         # new_s = new_s.rstrip('.')
-        #         # print('-new_s-',user_canister_id,"kkk{}ppp".format(new_s) )
-        #         # try:
-        #         #     abstract_json = json.loads(new_s)
-        #         #     print('-abstract_json-',abstract_json,'type=',self.get_type_name(abstract_json) )
-        #         #     article_id = item_line['id'] 
-        #         #     op_tick_group_key = '{}_{}'.format(abstract_json['op'],abstract_json['tick'])
-        #         #     # 加组
-        #         #     item_line[op_tick_group_key] = op_tick_group_key
-        #         #     self.op_tick_group_data_dict[op_tick_group_key] = {}
-        #         #     # 去重
-        #         #     # self.op_tick_group_data_dict[op_tick_group_key][article_id] = item_line
-        #         #     if article_id in self.op_tick_group_data_dict[op_tick_group_key]:
-        #         #         self.op_tick_group_data_dict[op_tick_group_key][article_id]['count'] += 1
-        #         #     else:
-        #         #         self.op_tick_group_data_dict[op_tick_group_key][article_id] = {
-        #         #             "count":1,
-        #         #             "item_line":item_line,
-        #         #         }
-        #         #     # print('--item_line--',item_line,self.get_type_name(item_line))
-        #         #     # 记录每一行不重复的数据
-        #         #     # append_to_jsonl(file_path=self.all_data_list_path, data=item_line)
-        #         #     canister_article_list.append(item_line)
-        #         #     article_id_dict[item_line['id']] = 1
-        #         # except:
-        #         #     print('-abstract error Mint -',user_canister_id,"kkk{}ppp".format(abstract) )
-        #     elif abstract.startswith('Deploy:'):
-        #         # print("该字符串以 'Deploy: {' 开头")
-        #         # print('-abstract-',abstract)
-        #         # 删除字符串左边的特定字符
-        #         new_s = abstract.lstrip('Deploy:')
-        #         items_line = self.op_tick_group_data_make(item_line,user_canister_id,new_s,abstract)
-        #         if items_line:
-        #             # print('--item_line--',item_line,self.get_type_name(item_line))
-        #             # 记录每一行不重复的数据
-        #             # append_to_jsonl(file_path=self.all_data_list_path, data=item_line)
-        #             self.op_deploy_tick_group_data_make(items_line)
-        #             # canister_article_list.append(items_line)
-        #             # article_id_dict[items_line['id']] = items_line['id']
+                # new_s = new_s.lstrip(' ')
+                # # -new_s- { "p": "mora-20", "op": "mint", "tick": "mora", "amt": "1000" } tag：$mora
+                # if new_s.__contains__(' tag：'):
+                #     new_s_list = new_s.split(' tag：')
+                #     new_s = new_s_list[0]
+                # # -new_s- { "p": "mora-20", "op": "mint", "tick": "mora", "amt": "1000" }.
+                # new_s = new_s.rstrip('.')
+                # print('-new_s-',user_canister_id,"kkk{}ppp".format(new_s) )
+                # try:
+                #     abstract_json = json.loads(new_s)
+                #     print('-abstract_json-',abstract_json,'type=',self.get_type_name(abstract_json) )
+                #     article_id = item_line['id'] 
+                #     op_tick_group_key = '{}_{}'.format(abstract_json['op'],abstract_json['tick'])
+                #     # 加组
+                #     item_line[op_tick_group_key] = op_tick_group_key
+                #     self.op_tick_group_data_dict[op_tick_group_key] = {}
+                #     # 去重
+                #     # self.op_tick_group_data_dict[op_tick_group_key][article_id] = item_line
+                #     if article_id in self.op_tick_group_data_dict[op_tick_group_key]:
+                #         self.op_tick_group_data_dict[op_tick_group_key][article_id]['count'] += 1
+                #     else:
+                #         self.op_tick_group_data_dict[op_tick_group_key][article_id] = {
+                #             "count":1,
+                #             "item_line":item_line,
+                #         }
+                #     # print('--item_line--',item_line,self.get_type_name(item_line))
+                #     # 记录每一行不重复的数据
+                #     # append_to_jsonl(file_path=self.all_data_list_path, data=item_line)
+                #     canister_article_list.append(item_line)
+                #     article_id_dict[item_line['id']] = 1
+                # except:
+                #     print('-abstract error Mint -',user_canister_id,"kkk{}ppp".format(abstract) )
+            elif abstract.startswith('Deploy:'):
+                # print("该字符串以 'Deploy: {' 开头")
+                # print('-abstract-',abstract)
+                # 删除字符串左边的特定字符
+                new_s = abstract.lstrip('Deploy:')
+                items_line = self.op_tick_group_data_make(item_line,user_canister_id,new_s,abstract)
+                if items_line:
+                    # print('--item_line--',item_line,self.get_type_name(item_line))
+                    # 记录每一行不重复的数据
+                    # append_to_jsonl(file_path=self.all_data_list_path, data=item_line)
+                    # self.op_deploy_tick_group_data_make(items_line)
+                    canister_article_list.append(items_line)
+                    # article_id_dict[items_line['id']] = items_line['id']
                     
-        #         # new_s = new_s.lstrip(' ')
-        #         # print('-new_s-',new_s)
-        #         # abstract_json = json.loads(new_s)
-        #         # print('-abstract_json-',abstract_json,'type=',self.get_type_name(abstract_json) )
-        #         # article_id = item_line['id'] 
-        #         # op_tick_group_key = '{}_{}'.format(abstract_json['op'],abstract_json['tick'])
-        #         # self.op_tick_group_data_dict[op_tick_group_key] = {}
-        #         # self.op_tick_group_data_dict[op_tick_group_key][article_id] = item_line
-        #         # # print('--item_line--',item_line,self.get_type_name(item_line))
-        #         # # 记录每一行不重复的数据
-        #         # # append_to_jsonl(file_path=self.all_data_list_path, data=item_line)
-        #         # canister_article_list.append(item_line)
-        #         # article_id_dict[item_line['id']] = 1
-        #     else:
-        #         pass
-        #         # print("该字符串不以 '{' 开头",abstract)
+                # new_s = new_s.lstrip(' ')
+                # print('-new_s-',new_s)
+                # abstract_json = json.loads(new_s)
+                # print('-abstract_json-',abstract_json,'type=',self.get_type_name(abstract_json) )
+                # article_id = item_line['id'] 
+                # op_tick_group_key = '{}_{}'.format(abstract_json['op'],abstract_json['tick'])
+                # self.op_tick_group_data_dict[op_tick_group_key] = {}
+                # self.op_tick_group_data_dict[op_tick_group_key][article_id] = item_line
+                # # print('--item_line--',item_line,self.get_type_name(item_line))
+                # # 记录每一行不重复的数据
+                # # append_to_jsonl(file_path=self.all_data_list_path, data=item_line)
+                # canister_article_list.append(item_line)
+                # article_id_dict[item_line['id']] = 1
+            else:
+                pass
+                # print("该字符串不以 '{' 开头",abstract)
+        '''
 
 
 
@@ -715,6 +740,10 @@ class ic_data_statistics():
         if not total:
             return []
         
+        ret = {}
+        ret_list_data = []
+        res = []
+
 
         #     with map_httpcore_exceptions():
         # File "D:\python\3.10.9\lib\contextlib.py", line 153, in __exit__
@@ -729,93 +758,99 @@ class ic_data_statistics():
         # 根据总条数计算总页数
         total_page = self.calculate_total_pages(size,total)
         # inclusive_range = list(range(2, total_page + 1)) 
-        
-        max_worker = 750
+        total = 0
+
+        max_worker = 100
         # msg = f'----------------------------------- thread_pool_articles  user_canister_id={user_canister_id} canister_index={canister_index} total={total} inclusive_range={inclusive_range}'
         # print(msg)
         # item_line = {
         #     "msg":msg
         # }
         # append_to_jsonl(file_path=self.indes_canister_data_dict_path, data=item_line)
-    
+        # for page in range(2,total_page+1):
+        #     # print('Index: {}, canister_id: {}'.format(page, user_canister_id))
+        #     obj = self.query_user_articles(user_canister_id,page,canister_index)
+
         with ThreadPoolExecutor(max_workers=max_worker) as t:
-            # obj_list = []
+            obj_list = []
             for page in range(2,total_page+1):
                 # print('Index: {}, canister_id: {}'.format(page, user_canister_id))
                 obj = t.submit(self.query_user_articles, user_canister_id,page,canister_index)
                 # obj_list.append(obj)
-            # for future in as_completed(obj_list):
-            #     ret_data = future.result()
-            #     ret_list_data = ret_data.get('data',[]) or []
-            #     page = ret_data.get('page',0) or 0
-            #     for item_line in ret_list_data:
-            #         # 当前canister_id 根据文章id去重
-            #         # if item_line['id'] in article_id_dict:
-            #         #     # print("--------item_line['id'] in article_id_dict-------",item_line['id'],'',article_id_dict[item_line['id']])
-            #         #     continue
-            #         if self.canister_article_is_exists(user_canister_id,canister_index,item_line['id'],page):
-            #             continue
-            #         item_line['user_canister_id'] = user_canister_id
-            #         item_line['canister_index'] = canister_index
-            #         item_line['page'] = page
-            #         item_line['author'] = item_line['author'].to_str()
-            #         # -abstract- Mint: { "p": "mora-20", "op": "mint", "tick": "mora", "amt": "1000" }
-            #         # -abstract- Mora Protocol
-            #         abstract = item_line['abstract']
-            #         # python 去除字符串右边的换行符
-            #         abstract = abstract.rstrip('\n')
-            #         abstract = abstract.rstrip('\r')
-            #         abstract = abstract.rstrip('\r\n')
-            #         # 是否有 Mint: {
-            #         if abstract.startswith('Mint:'):
-            #             # print("该字符串以 'Mint: {' 开头")
-            #             new_s = abstract.lstrip('Mint:')
-            #             items_line = self.op_tick_group_data_make(item_line,user_canister_id,new_s,abstract)
-            #             if items_line:
-            #                 # print('--item_line--',item_line,self.get_type_name(item_line))
-            #                 # 记录每一行不重复的数据
-            #                 # append_to_jsonl(file_path=self.all_data_list_path, data=item_line)
-            #                 pass
-            #                 # canister_article_list.append(items_line)
+            '''
+            for future in as_completed(obj_list):
+                ret_data = future.result()
+                ret_list_data = ret_data.get('data',[]) or []
+                page = ret_data.get('page',0) or 0
+                for item_line in ret_list_data:
+                    # 当前canister_id 根据文章id去重
+                    # if item_line['id'] in article_id_dict:
+                    #     # print("--------item_line['id'] in article_id_dict-------",item_line['id'],'',article_id_dict[item_line['id']])
+                    #     continue
+                    if self.canister_article_is_exists(user_canister_id,canister_index,item_line['id'],page):
+                        continue
+                    item_line['user_canister_id'] = user_canister_id
+                    item_line['canister_index'] = canister_index
+                    item_line['page'] = page
+                    item_line['author'] = item_line['author'].to_str()
+                    # -abstract- Mint: { "p": "mora-20", "op": "mint", "tick": "mora", "amt": "1000" }
+                    # -abstract- Mora Protocol
+                    abstract = item_line['abstract']
+                    # python 去除字符串右边的换行符
+                    abstract = abstract.rstrip('\n')
+                    abstract = abstract.rstrip('\r')
+                    abstract = abstract.rstrip('\r\n')
+                    # 是否有 Mint: {
+                    if abstract.startswith('Mint:'):
+                        # print("该字符串以 'Mint: {' 开头")
+                        new_s = abstract.lstrip('Mint:')
+                        items_line = self.op_tick_group_data_make(item_line,user_canister_id,new_s,abstract)
+                        if items_line:
+                            # print('--item_line--',item_line,self.get_type_name(item_line))
+                            # 记录每一行不重复的数据
+                            # append_to_jsonl(file_path=self.all_data_list_path, data=item_line)
+                            # pass
+                            canister_article_list.append(items_line)
 
-            #                 # article_id_dict[items_line['id']] = items_line['id']
+                            # article_id_dict[items_line['id']] = items_line['id']
                             
-            #         elif abstract.startswith('Deploy:'):
-            #             # print("该字符串以 'Deploy: {' 开头")
-            #             # print('-abstract-',abstract)
-            #             # 删除字符串左边的特定字符
-            #             new_s = abstract.lstrip('Deploy:')
-            #             items_line = self.op_tick_group_data_make(item_line,user_canister_id,new_s,abstract)
-            #             if items_line:
-            #                 # print('--item_line--',item_line,self.get_type_name(item_line))
-            #                 # 记录每一行不重复的数据
-            #                 # append_to_jsonl(file_path=self.all_data_list_path, data=item_line)
-            #                 self.op_deploy_tick_group_data_make(items_line)
-            #                 # canister_article_list.append(items_line)
-            #                 # article_id_dict[items_line['id']] = items_line['id']
+                    elif abstract.startswith('Deploy:'):
+                        # print("该字符串以 'Deploy: {' 开头")
+                        # print('-abstract-',abstract)
+                        # 删除字符串左边的特定字符
+                        new_s = abstract.lstrip('Deploy:')
+                        items_line = self.op_tick_group_data_make(item_line,user_canister_id,new_s,abstract)
+                        if items_line:
+                            # print('--item_line--',item_line,self.get_type_name(item_line))
+                            # 记录每一行不重复的数据
+                            # append_to_jsonl(file_path=self.all_data_list_path, data=item_line)
+                            # self.op_deploy_tick_group_data_make(items_line)
+                            canister_article_list.append(items_line)
+                            # article_id_dict[items_line['id']] = items_line['id']
                         
                             
-            #             # new_s = new_s.lstrip(' ')
-            #             # print('-new_s-',new_s)
+                        # new_s = new_s.lstrip(' ')
+                        # print('-new_s-',new_s)
                 
-            #             # abstract_json = json.loads(new_s)
-            #             # print('-abstract_json-',abstract_json,'type=',self.get_type_name(abstract_json) )
-            #             # article_id = item_line['id'] 
-            #             # op_tick_group_key = '{}_{}'.format(abstract_json['op'],abstract_json['tick'])
-            #             # self.op_tick_group_data_dict[op_tick_group_key] = {}
-            #             # self.op_tick_group_data_dict[op_tick_group_key][article_id] = item_line
+                        # abstract_json = json.loads(new_s)
+                        # print('-abstract_json-',abstract_json,'type=',self.get_type_name(abstract_json) )
+                        # article_id = item_line['id'] 
+                        # op_tick_group_key = '{}_{}'.format(abstract_json['op'],abstract_json['tick'])
+                        # self.op_tick_group_data_dict[op_tick_group_key] = {}
+                        # self.op_tick_group_data_dict[op_tick_group_key][article_id] = item_line
 
-            #             # # print('--item_line--',item_line,self.get_type_name(item_line))
-            #             # # 记录每一行不重复的数据
-            #             # # append_to_jsonl(file_path=self.all_data_list_path, data=item_line)
-            #             # canister_article_list.append(item_line)
-            #             # article_id_dict[item_line['id']] = 1
-            #         else:
-            #             pass
-            #             # print("该字符串不以 '{' 开头",abstract)
-            #     # if ret_data:
-            #     #     canister_article_list.append(ret_data)
-            #         # print("返回的",ret_data)
+                        # # print('--item_line--',item_line,self.get_type_name(item_line))
+                        # # 记录每一行不重复的数据
+                        # # append_to_jsonl(file_path=self.all_data_list_path, data=item_line)
+                        # canister_article_list.append(item_line)
+                        # article_id_dict[item_line['id']] = 1
+                    else:
+                        pass
+                        # print("该字符串不以 '{' 开头",abstract)
+                # if ret_data:
+                #     canister_article_list.append(ret_data)
+                    # print("返回的",ret_data)
+            '''
         # 清空数据
         article_id_dict = {}
         return canister_article_list
@@ -927,10 +962,12 @@ class ic_data_statistics():
             items_line["protocol"]=abstract_json["p"]
             items_line["op"]=abstract_json["op"]
             items_line["tick"]=abstract_json["tick"]
-            items_line["amt"]=abstract_json["amt"] if 'amt' in abstract_json else 0
-            items_line["max"]=abstract_json["max"] if 'max' in abstract_json else 0
-            items_line["lim"]=abstract_json["lim"] if 'lim' in abstract_json else 0
+            items_line["amt"]= int(abstract_json["amt"]) if 'amt' in abstract_json else 0
+            items_line["max"]=int(abstract_json["max"]) if 'max' in abstract_json else 0
+            items_line["lim"]=int(abstract_json["lim"]) if 'lim' in abstract_json else 0
+            
 
+            # ------make_canister_article_page_list----- {'id': '0C6ADX4T9D3F10GA4KAMH4V4VD', 'status': {'Public': None}, 'thumb': 'QmUgfHX5Z7gqncCvhUuWQeSPeH4vWUBBTbHwgbQ1aGLSTT', 'title': 'Power', 'created': 1702261404722, 'toped': 0, 'subcate': 0, 'atype': {'Article': None}, 'cate': 0, 'like': 0, 'tags': [], 'view': 0, 'fromurl': '', 'unlike': 0, 'author': 'r3257-akxyo-m7uo5-ifsx2-bgjzk-hk6zj-da2w4-andpt-zs4xz-y5v3d-sae', 'commentTotal': 0, 'comment': 0, 'updated': 1702261404722, 'abstract': 'Mint:{"p":"mora-20","op":"mint","tick":"power","amt":"likes"}', 'allowComment': True, 'copyright': [], 'original': True, 'commentNew': 0, 'user_canister_id': 'erpbi-cyaaa-aaaan-qdccq-cai', 'canister_index': 16, 'page': 1, 'op_tick_group_key': 'mint_power', 'protocol': 'mora-20', 'op': 'mint', 'tick': 'power', 'amt': 'likes', 'max': 0, 'lim': 0}
             # op_tick_article_id_key = "{}_{}".format(op_tick_group_key,article_id)
             # key 去重
             # self.op_tick_article_id_key_dict[op_tick_group_key] = {}
@@ -951,6 +988,10 @@ class ic_data_statistics():
             # 判断这个文件是否存在 
             op_tick_group_article_id_path = os.path.join(op_tick_group_key_path, "{}.json".format(article_id) )
             file_is_exist = file_python_exists(op_tick_group_article_id_path)
+
+            articl_op_tick_key = '{}_{}'.format(op_tick_group_key,article_id)
+            if articl_op_tick_key not in self.op_tick_group_data_dict:
+                self.op_tick_group_data_dict[articl_op_tick_key] = items_line
             if file_is_exist:
                 # 去重
                 tmp_op_tick_group_dict['追加'] = 'op_tick_append'
@@ -971,6 +1012,7 @@ class ic_data_statistics():
                 # self.op_tick_article_id_key_dict[op_tick_group_key][article_id] = article_id
                 # 真正的数据
                 '''
+                
                 items_tmp_line = {
                     "article_id":article_id,
                     "op_tick_group_key":op_tick_group_key,
@@ -994,7 +1036,8 @@ class ic_data_statistics():
                     
                 }
                 '''
-                # self.op_tick_group_data_dict[op_tick_group_key].append(items_tmp_line)
+                
+                # self.op_tick_group_data_dict[op_tick_group_key].append(items_line)
                 # self.op_tick_group_data_dict.append(items_line)
             # self.op_tick_article_id_key_dict[op_tick_article_id_key] = article_id
             # self.op_tick_group_data_dict[op_tick_group_key] = {}
@@ -1026,7 +1069,7 @@ class ic_data_statistics():
     def query_user_articles(self,user_canister_id = '',page=1,canister_index=0):
         ''' 根据用户-分页返回文章-不同的页数据可能重复 '''
         # 暂停一下 线程池速度太快接口会超时
-        # time.sleep(1)
+        time.sleep(1)
         # msg = f'======================================query_user_articles  user_canister_id={user_canister_id}  canister_index={canister_index}  page={page}'
         # print(msg)
         # item_line = {
@@ -1069,6 +1112,12 @@ class ic_data_statistics():
         total = ret.get('total',0) or 0
         ret_list_data = ret.get('data',[]) or []
         self.make_canister_article_page_list(ret_list_data,user_canister_id,canister_index,page)
+        ret = {}
+        ret_list_data = []
+        res = []
+        queryArticleReq = {}
+        user_governance = {}
+        
         # page = ret.get('page',0) or 0
         # del ret['data']
         # if not hasmore:
@@ -1137,7 +1186,13 @@ class ic_data_statistics():
                     # 记录每一行不重复的数据
                     # append_to_jsonl(file_path=self.all_data_list_path, data=item_line)
                     # pass
-                    multi_data_list.append(items_line)
+                    # print('')
+                    # print('------make_canister_article_page_list-----',items_line)
+                    try:
+                        items_line["amt"] = int(items_line["amt"])
+                        multi_data_list.append(items_line)
+                    except:
+                        pass
 
                     # article_id_dict[items_line['id']] = items_line['id']
 
@@ -1152,7 +1207,15 @@ class ic_data_statistics():
                     # 记录每一行不重复的数据
                     # append_to_jsonl(file_path=self.all_data_list_path, data=item_line)
                     # self.op_deploy_tick_group_data_make(items_line)
-                    multi_data_list.append(items_line)
+                    # print('')
+                    # print('------make_canister_Deploy_article_page_list-----',items_line)
+                    # multi_data_list.append(items_line)
+                    try:
+                        items_line["amt"] = int(items_line["amt"])
+                        multi_data_list.append(items_line)
+                    except:
+                        pass
+
                     # article_id_dict[items_line['id']] = items_line['id']
                 
                     
