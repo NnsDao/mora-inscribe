@@ -115,7 +115,7 @@ python manage.py runserver
 # http://127.0.0.1:8000/get_op_tick_list?page=2&size=12
 # http://127.0.0.1:8000/get_op_tick_list?page=2&size=2&op_tick_group_key=deploy_wow
 # http://127.0.0.1:8000/get_article_list?page=2&size=5&atype=Article&article_id=0D5VQRQK0AH9VY7Q1EPXSRM3RR
-
+# http://api.icpscriptions.com/get_article_list
 
 
 # linux 部署
@@ -139,11 +139,17 @@ ls -laih uwsgi_config
 
 cd /www/wwwroot/api.icpscriptions.com
 # 后台运行
-bash ic_query_user_article_list.sh > ic_query_user_article_list.log 2>&1 &
-# nohup  echo_test.sh > ic_query_user_article_list.log 2>&1
+nohup bash ic_query_user_article_list.sh > ic_query_user_article_list.log 2>&1 &
+# nohup bash echo_test.sh > ic_query_user_article_list.log 2>&1 &
 ps -aux | grep 'ic_query_user_article_list'
+tail -f ic_query_user_article_list.log
 jobs
 # 后台程序正确的退出 [1]+  Done                    bash ic_query_user_article_list.sh > ic_query_user_article_list.log 2>&1
+
+# /usr/local/lib/python3.9/site-packages/ic/client.py
+# def query(self
+
+
 
 # 程序出现 killed
 # https://zhuanlan.zhihu.com/p/648165521?utm_id=0

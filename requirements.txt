@@ -13,3 +13,9 @@ utils==1.0.1
 # https://zhuanlan.zhihu.com/p/623325525?utm_id=0
 # django-admin startproject mysite
 # python manage.py startapp myapp
+
+# mysql数据库连接池 
+# https://blog.csdn.net/weixin_44634704/article/details/106971379
+# https://blog.csdn.net/pushiqiang/article/details/51152755
+# pip install django-db-connection-pool -i https://pypi.tuna.tsinghua.edu.cn/simple
+django-db-connection-pool==1.2.4
