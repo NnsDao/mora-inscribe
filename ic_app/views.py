@@ -28,7 +28,7 @@ def index(request):
 #     return HttpResponse("Hello World! index")
 
 def initReturnData():
-    retData = {'success':False,'code': 0, 'data': {}, 'msg': '方法错误'}
+    retData = {'success':False,'code': 0, 'data': {}, 'msg': ''}
     return retData
 def hello(request):
     return HttpResponse("Hello World!")
@@ -84,10 +84,10 @@ def get_op_tick_list(request):
         
         # retData['total_count'] = paginator.count  
     
-        print('')
-        print('---page_data---',page_data)
-        print('')
-        print('')
+        # print('')
+        # print('---page_data---',page_data)
+        # print('')
+        # print('')
         # Object of type Page is not JSON serializable
 
         # cookieOne = cookieDataOne['cookie_one']
@@ -97,6 +97,9 @@ def get_op_tick_list(request):
         # print('--errInfo--',user_id,errInfo)
         # runLog(content=errInfo)
         cookieOne = ''
+        retData['success'] = False
+        retData['code'] = 8
+        retData['msg'] = errInfo
     # if not article_data_list :
     #     retData['code'] = 3
     #     retData['msg'] = '获取失败'    
@@ -166,10 +169,10 @@ def get_article_list(request):
         
         # retData['total_count'] = paginator.count  
     
-        print('')
-        print('---page_data---',page_data)
-        print('')
-        print('')
+        # print('')
+        # print('---page_data---',page_data)
+        # print('')
+        # print('')
         # Object of type Page is not JSON serializable
 
         # cookieOne = cookieDataOne['cookie_one']
@@ -179,6 +182,9 @@ def get_article_list(request):
         # print('--errInfo--',user_id,errInfo)
         # runLog(content=errInfo)
         cookieOne = ''
+        retData['success'] = False
+        retData['code'] = 8
+        retData['msg'] = errInfo
     # if not article_data_list :
     #     retData['code'] = 3
     #     retData['msg'] = '获取失败'    
