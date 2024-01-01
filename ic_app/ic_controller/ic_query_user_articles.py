@@ -43,14 +43,19 @@ class ic_data_statistics():
         self.agent = Agent(iden, self.client)
         self.get_root_path = get_root()
         # 去重.
-        self.file_is_exists = os.path.join(self.get_root_path, 'file_is_exists')
+        self.file_is_exists = os.path.join(self.get_root_path, 'file_is_exist')
         self.op_tick_group_is_exists_key = os.path.join(self.file_is_exists, 'op_tick_group_key')
         # 同一个用户下的文章ID是否存在文件
         self.canister_id_article_id_is_exists_path = os.path.join(self.file_is_exists, 'canister_id_article_id')
         root_inittrail_path = os.path.join(self.get_root_path, 'root_inittrail.did')
         user_plant_path = os.path.join(self.get_root_path, 'user_plant.did')
-        self.root_governance_did = open(root_inittrail_path, "r", encoding="utf-8").read()
-        self.user_governance_did = open(user_plant_path, "r", encoding="utf-8").read()
+        with open(root_inittrail_path, "r", encoding="utf-8") as f:
+            self.root_governance_did = f.read()
+        with open(user_plant_path, "r", encoding="utf-8") as f:
+            self.user_governance_did = f.read()
+
+        # self.root_governance_did = open(root_inittrail_path, "r", encoding="utf-8").read()
+        # self.user_governance_did = open(user_plant_path, "r", encoding="utf-8").read()
         self.governance = Canister(agent=self.agent, canister_id=self.root_canister_id, candid=self.root_governance_did)
         time_current = getTime()
         # formatted_total_start_time = time_current['formatted_time']
@@ -144,7 +149,7 @@ class ic_data_statistics():
         # 保存   op以及tick分组去重 
         # self.save_config_json(config_path=self.op_tick_group_data_list_path,config_dict_data=self.op_tick_group_data_dict)
         return ret_all
-    def thread_pool_data(self,max_worker=600):
+    def thread_pool_data(self,max_worker=120):
         '''
         线程池
         '''
@@ -196,9 +201,9 @@ class ic_data_statistics():
         # 保存   op以及tick分组去重 
         # self.save_config_json(config_path=self.op_tick_group_data_list_path,config_dict_data=self.op_tick_group_data_dict)
         # 删除目录
-        remove_folder(self.op_tick_group_is_exists_key)
+        # remove_folder(self.op_tick_group_is_exists_key)
         # 删除目录
-        remove_folder(self.canister_id_article_id_is_exists_path)
+        # remove_folder(self.canister_id_article_id_is_exists_path)
         # self.make_op_tick_list()
     def make_op_tick_list(self):
         article_total = len(self.op_tick_group_data_dict)
@@ -585,10 +590,10 @@ class ic_data_statistics():
             show_msg = '--检测同一个 canister_id 下的文章ID是否存在文件 article_id:{} page:{} canister_id:{} canister_index:{} canister_article_id_path:{}'.format(article_id, page,canister_id ,canister_index,canister_article_id_path)
             print( show_msg )
             print('')
-            append_to_jsonl(file_path=canister_article_id_path, data=tmp_op_tick_group_dict)
+            # append_to_jsonl(file_path=canister_article_id_path, data=tmp_op_tick_group_dict)
         else:
             tmp_op_tick_group_dict['22222'] = '检测同一个 canister_id 下的文章ID是否存在文件'
-            append_to_jsonl(file_path=canister_article_id_path, data=tmp_op_tick_group_dict)
+            # append_to_jsonl(file_path=canister_article_id_path, data=tmp_op_tick_group_dict)
         return file_is_exist
 
     def thread_pool_articles(self,user_canister_id = '',canister_index=0):
@@ -760,7 +765,7 @@ class ic_data_statistics():
         # inclusive_range = list(range(2, total_page + 1)) 
         total = 0
 
-        max_worker = 100
+        max_worker = 80
         # msg = f'----------------------------------- thread_pool_articles  user_canister_id={user_canister_id} canister_index={canister_index} total={total} inclusive_range={inclusive_range}'
         # print(msg)
         # item_line = {
@@ -1064,8 +1069,12 @@ class ic_data_statistics():
         return items_line
     def save_config_json(self,config_path,config_dict_data):
         # 将 config_dict_data 保存到json文件中
+        # 使用with语句块自动关闭文件  不需要手动关闭文件，当代码执行完毕时会自动关闭文件
         with open(config_path, 'w', encoding='utf-8') as f:
             json.dump(config_dict_data, f, ensure_ascii=False)
+        # file = open("file.txt", "r")
+        # file.close()
+
     def query_user_articles(self,user_canister_id = '',page=1,canister_index=0):
         ''' 根据用户-分页返回文章-不同的页数据可能重复 '''
         # 暂停一下 线程池速度太快接口会超时
@@ -1242,7 +1251,7 @@ class ic_data_statistics():
         self.multi_save_op_tick_list_to_db(multi_data_list)
         self.multi_save_article_list_to_db(multi_data_list)
         multi_data_list = []
-
+    
 def getTime():
     # 获取当前日期和时间
     now = datetime.datetime.now()
@@ -1275,8 +1284,38 @@ def mk_dir(path):
         # 如果目录存在则不创建，并提示目录已存在
         # print(path+' 目录已存在')
         return False
-def remove_folder(path):
-    ''' 会直接删除整个文件夹及其内容.在使用方法2时,需要确保路径有效性,以免意外删除其他文件夹 '''
+def remove_folder(folder_path):
+    ''' 
+    会直接删除整个文件夹及其内容.在使用方法2时,需要确保路径有效性,以免意外删除其他文件夹 
+    '''
+    # 指定要删除的文件夹路径
+    # folder_path = "your/folder/path"
+    if not file_python_exists(folder_path) :
+        return ''
+    
+    # 获取文件夹内所有文件名
+    file_names = os.listdir(folder_path)
+    
+    # 遍历并删除每个文件
+    for file in file_names:
+        # 构建完整的文件路径
+        file_path = os.path.join(folder_path, file)
+        
+        if os.path.isfile(file_path)  or os.path.islink(file_path):
+            # 如果是文件则直接删除
+            os.remove(file_path)
+            
+        elif os.path.isdir(file_path):
+            # 如果是子文件夹则递归调用该函数进行删除操作
+            remove_folder(file_path)
+            os.rmdir(file_path)
+    # os.rmdir(folder_path)
+
+def remove_folder_bak(path):
+    ''' 
+    会直接删除整个文件夹及其内容.在使用方法2时,需要确保路径有效性,以免意外删除其他文件夹 
+    OSError: [Errno 24] Too many open files
+    '''
     if os.path.exists(path):
         shutil.rmtree(path)
 def file_python_exists(file_path):
@@ -1288,6 +1327,9 @@ def append_to_jsonl(file_path, data):
     # 追加写入到.jsonl文件中  
     with open(file_path, 'a',encoding='utf-8') as file:  
         file.write(json_data + '\n')  
+def my_file_close(file_path_f):
+        ''' 关闭打开的文件 '''
+        file_path_f.close()
 
 def run():
     # obj = ic_data_statistics()

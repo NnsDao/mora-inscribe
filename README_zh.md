@@ -118,9 +118,31 @@ python manage.py runserver
 # http://api.icpscriptions.com/get_article_list
 
 
+
+
+
+
+systemctl stop mysql 
+systemctl status mysql
+systemctl start  mysql
+cat /etc/mysql/mysql.conf.d/mysqld.cnf
+
+
+
+
 # linux 部署
 ls -laih uwsgi_config
 
+# 启动
+uwsgi --ini uwsgi_config/uwsgi.ini
+# 重新加载
+uwsgi --reload uwsgi_config/uwsgi.pid
+# 停止运行
+uwsgi --stop uwsgi_config/uwsgi.pid
+# 状态 信息
+uwsgi --connect-and-read uwsgi_config/uwsgi.status
+
+ps -aux | grep 'uwsgi'
 
 
 
@@ -149,7 +171,8 @@ jobs
 # /usr/local/lib/python3.9/site-packages/ic/client.py
 # def query(self
 
-
+ls -la file_is_exist_s/canister_id_article_id
+ls -la file_is_exist_s/op_tick_group_key
 
 # 程序出现 killed
 # https://zhuanlan.zhihu.com/p/648165521?utm_id=0

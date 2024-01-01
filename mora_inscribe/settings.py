@@ -26,7 +26,9 @@ SECRET_KEY = 'django-insecure-#d#nmtr(6mow$rs0z*dqga!x)vg(kphllkiyf#%man)%%%h-#s
 # DEBUG = True
 DEBUG = os.getenv("DEBUG",'False').lower() == 'true'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'api.icpscriptions.com'
+]
 
 
 # Application definition
