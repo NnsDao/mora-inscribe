@@ -149,7 +149,7 @@ class ic_data_statistics():
         # 保存   op以及tick分组去重 
         # self.save_config_json(config_path=self.op_tick_group_data_list_path,config_dict_data=self.op_tick_group_data_dict)
         return ret_all
-    def thread_pool_data(self,max_worker=120):
+    def thread_pool_data(self,max_worker=100):
         '''
         线程池
         '''
@@ -765,7 +765,7 @@ class ic_data_statistics():
         # inclusive_range = list(range(2, total_page + 1)) 
         total = 0
 
-        max_worker = 80
+        max_worker = 50
         # msg = f'----------------------------------- thread_pool_articles  user_canister_id={user_canister_id} canister_index={canister_index} total={total} inclusive_range={inclusive_range}'
         # print(msg)
         # item_line = {
